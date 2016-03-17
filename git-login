@@ -1,0 +1,33 @@
+#!/bin/sh
+# Log into git-hub repo specified by url 
+# otheus@gmail.com
+# 2016-03-17
+urlbase=$(echo "${1:-https://git.uibk.ac.at/api/v3/}" | sed 's%\(/api/v.\)/.*%\1/%')
+echo >&2 "Using git repo at $urlbase"
+set -o pipefail
+let try_again=3
+let success=0
+if [[ -n "$PRIVATE_TOKEN" ]]; then
+  if curl -o- -f -H "PRIVATE-TOKEN: $PRIVATE_TOKEN" "$urlbase/user"  &>/dev/null ; then
+    echo "PRIVATE_TOKEN='$PRIVATE_TOKEN';export PRIVATE_TOKEN"
+    exit 0
+  else
+    echo >&2 "Current PRIVATE_TOKEN invalid; requesting new one."
+  fi
+fi
+
+while [[ $success = 0 && $try_again -gt 0 ]]; do 
+  read    -p "Repository Username: " repo_username
+  read -s -p "Password: " repo_password
+  echo
+ 
+  let try_again=try_again-1
+  if curl -o- -d "login=$repo_username" -d "password=$repo_password" "$urlbase/session"  2>/dev/null |
+   perl -ln \
+      -e 'BEGIN{$key="PRIVATE_TOKEN"}' \
+      -e '/"$key":"(\w+)"/io and $tok||=$1;' \
+      -e 'END{ exit 1 unless $tok; print "$key=\"$tok\";export $key"; }' 
+  then
+   let success=1
+  fi
+done

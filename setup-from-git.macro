@@ -1,0 +1,45 @@
+%setup_from_git(U:S:n:t:H:O:)	  \
+  # Version 1.0 \
+  # by otheus@gmail.com \
+  # Pull source.tar.gz from given repository \
+  # Usage : \
+  if [ -z '%{-U*}' -o -z '%{-S*}' -o -z '%{-n*}' ]; then \
+    set +x \
+    echo >&2 "The git_setup macro requires -U <URL> -S <source-tarfile> -n <source-dir>" \
+    echo >&2 "The downloaded URL will be saved as <source-tarfile> and extracted into <source-dir>" \
+    exit 1 \
+  fi \
+  # Also -O to to specify options to curl ( headers, proxy, etc ) \
+  # Better yet, use -O to specify "-K tmpfile" and fill tmpfile with config options \
+  # and -t to override environment PRIVATE_TOKEN for PRIVATE-TOKEN header \
+  # see https://github.com/gitlabhq/gitlabhq/blob/master/doc/api/session.md \
+  \
+  cd %{_sourcedir} \
+  if [ ! -f '%{-S*}' ]; then \
+    let try_again=1 \
+    while [[ $try_again -gt 0 ]]; do \
+      let try_again=try_again-1 ||: \
+      # Pass auth token via pipe for security, using curl's -K option \
+      auth_token="%{-t:%{-t*}}%{!-t:${PRIVATE_TOKEN}}" \
+      echo "header = \\"PRIVATE-TOKEN: ${auth_token}\\"" | \
+        %{_urlhelper} '%{-S*}' -v -K - %{-O*} '%{-U*}'  \
+      if [ $? != 0 ]; then \
+	set +x \
+	echo >&2 'Failed to download tarfile from repository at %{-U*}' \
+	[[ -z $auth_token ]] && \
+	echo >&2 'Perhaps you must specify -t or setenv PRIVATE_TOKEN to authenticate' \
+	exit 1 \
+      fi \
+    done \
+  fi \
+  \
+  # the setup macro is needed to "Remember" the directory to cd into in other build phases \
+%setup -c -T -n %{-n*} \
+  if ! %{__tar} xfvva "%{-S*}" --strip-components 1  \
+  then \
+    set +x \
+    echo >&2 Could not extract tar file %{-S*} \
+    exit 1 \
+  fi \
+  # end macro
+
