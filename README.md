@@ -13,5 +13,6 @@ directly from git. The usage is something like this (inside .spec file):
     tar axf %{S:0} --strip-components 1
     %endif
 
-The included macro must be appended to either `~/.rpmmacros` or one of the site macro files
-(see `man rpmbuild`)
+To make it work, the included macro _must be appended_ to either `~/.rpmmacros` or 
+one of the site macro files (see `man rpmbuild`). (If rpmbuild ever handles a reasonable
+method of extension or directory-based includes, that requirement will change.)
